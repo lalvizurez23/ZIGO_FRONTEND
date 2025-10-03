@@ -1,39 +1,28 @@
 import api from './api'
+import { LoginCredentials, RegisterData, AuthResponse } from '../types'
 
 export const authService = {
   // Login
-  login: async (credentials) => {
+  login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
     const response = await api.post('/auth/login', credentials)
     return response.data
   },
 
   // Register
-  register: async (userData) => {
+  register: async (userData: RegisterData): Promise<AuthResponse> => {
     const response = await api.post('/auth/register', userData)
     return response.data
   },
 
   // Logout
-  logout: async () => {
+  logout: async (): Promise<void> => {
     const response = await api.post('/auth/logout')
     return response.data
   },
 
-  // Logout all devices
-  logoutAll: async () => {
-    const response = await api.post('/auth/logout-all')
-    return response.data
-  },
-
   // Get current user profile
-  getProfile: async () => {
+  getProfile: async (): Promise<any> => {
     const response = await api.get('/auth/profile')
     return response.data
   },
-
-  // Refresh token (if needed)
-  refreshToken: async () => {
-    const response = await api.post('/auth/refresh')
-    return response.data
-  }
 }

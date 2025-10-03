@@ -3,9 +3,11 @@ import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { BrowserRouter } from 'react-router-dom'
+import { Provider } from 'react-redux'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
-import App from './App.jsx'
+import { store } from './store'
+import App from './App'
 import './index.css'
 
 // Create a client
@@ -23,27 +25,33 @@ const queryClient = new QueryClient({
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#3b82f6',
+      main: '#25B0C4', // Zigo main blue
     },
     secondary: {
-      main: '#64748b',
+      main: '#64748b', // Neutral gray for secondary actions
     },
+    text: {
+      primary: '#1A1A1A', // Dark text
+      secondary: '#4A4A4A', // Medium text
+    }
   },
   typography: {
     fontFamily: 'Inter, system-ui, sans-serif',
   },
 })
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <App />
-          <ReactQueryDevtools initialIsOpen={false} />
-        </ThemeProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <Provider store={store}>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <App />
+            <ReactQueryDevtools initialIsOpen={false} />
+          </ThemeProvider>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </Provider>
   </React.StrictMode>,
 )

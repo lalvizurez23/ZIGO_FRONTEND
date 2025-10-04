@@ -8,16 +8,16 @@ export default {
     extend: {
       colors: {
         primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
+          50: '#e0f7fa',   // Very light Zigo blue
+          100: '#b2ebf2',  // Lighter Zigo blue
+          200: '#80deea',  // Zigo light blue (for dots, accents)
+          300: '#4dd0e1',
+          400: '#26c6da',
+          500: '#25B0C4',  // Zigo main blue (for buttons, logo outline)
+          600: '#00acc1',
+          700: '#0097a7',
+          800: '#00838f',
+          900: '#006064',
         },
         secondary: {
           50: '#f8fafc',
@@ -30,7 +30,9 @@ export default {
           700: '#334155',
           800: '#1e293b',
           900: '#0f172a',
-        }
+        },
+        'zigo-dark-text': '#1A1A1A',   // For main headings
+        'zigo-medium-text': '#4A4A4A', // For subheadings and navigation
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

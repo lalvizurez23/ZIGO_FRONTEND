@@ -8,10 +8,19 @@ import Cart from './pages/Cart'
 import Checkout from './pages/Checkout'
 import Orders from './pages/Orders'
 import { AuthProvider } from './contexts/AuthContext'
+import { Toaster } from './utils/toast'
 
 function App(): JSX.Element {
   return (
     <AuthProvider>
+      <Toaster 
+        position="top-right"
+        reverseOrder={false}
+        gutter={8}
+        toastOptions={{
+          duration: 3000,
+        }}
+      />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />

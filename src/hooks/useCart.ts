@@ -1,16 +1,23 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { cartService } from '../services/cartService'
-import { useAppDispatch } from '../store/hooks'
+import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { updateToken } from '../store/slices/authSlice'
+import { setCartId } from '../store/slices/cartSlice'
 
 // Hook para obtener carrito
 export const useCart = () => {
   const dispatch = useAppDispatch()
+  const { isAuthenticated } = useAppSelector((state) => state.auth)
 
   return useQuery({
     queryKey: ['cart'],
     queryFn: async () => {
       const response = await cartService.getCart()
+      
+      // Actualizar Redux con el ID del carrito
+      if (response?.idCarrito) {
+        dispatch(setCartId(response.idCarrito))
+      }
       
       // Si la respuesta contiene un nuevo token, actualizarlo en Redux
       if (response.accessToken) {
@@ -19,6 +26,7 @@ export const useCart = () => {
       
       return response
     },
+    enabled: isAuthenticated, // Solo se ejecuta si hay usuario autenticado
     staleTime: 2 * 60 * 1000, // 2 minutos
     retry: 1,
     refetchOnWindowFocus: false,
@@ -32,7 +40,15 @@ export const useAddToCart = () => {
 
   return useMutation({
     mutationFn: async ({ productId, quantity }: { productId: number; quantity: number }) => {
-      const response = await cartService.addItem(productId, quantity)
+      // Obtener el carrito del usuario (el backend extrae el userId del token)
+      const cart = await cartService.getCart()
+      
+      if (!cart) {
+        throw new Error('No se pudo obtener el carrito del usuario')
+      }
+
+      // Agregar item al carrito existente
+      const response = await cartService.addItem(cart.idCarrito, productId, quantity)
       
       // Si la respuesta contiene un nuevo token, actualizarlo en Redux
       if (response.accessToken) {

@@ -4,7 +4,8 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { TextField, Button, Typography, Container, Box, Alert } from '@mui/material'
+import { TextField, Button, Typography, Container, Box } from '@mui/material'
+import showToast from '../utils/toast'
 
 interface RegisterFormData {
   nombre: string
@@ -25,7 +26,7 @@ const schema = yup.object().shape({
 })
 
 const Register: React.FC = () => {
-  const { register: authRegister, loading, error } = useAuth()
+  const { register: authRegister, loading } = useAuth()
   const navigate = useNavigate()
   const { register, handleSubmit, formState: { errors } } = useForm<RegisterFormData>({
     resolver: yupResolver(schema),
@@ -34,8 +35,11 @@ const Register: React.FC = () => {
   const onSubmit = async (data: RegisterFormData) => {
     try {
       await authRegister(data)
+      showToast.success('¡Registro exitoso! Bienvenido a ZIGO')
       navigate('/products')
     } catch (err) {
+      const errorMessage = (err as Error).message || 'Error al registrarse'
+      showToast.error(errorMessage)
       console.error('Registration failed:', err)
     }
   }
@@ -46,7 +50,6 @@ const Register: React.FC = () => {
         <Typography component="h1" variant="h5" className="text-center text-zigo-dark-text">
           Registrarse
         </Typography>
-        {error && <Alert severity="error">{error}</Alert>}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <TextField
             {...register('nombre')}

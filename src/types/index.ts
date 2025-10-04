@@ -15,6 +15,7 @@ export interface Product {
 
 // Tipos para Usuario
 export interface User {
+  idUsuario: number
   email: string
   nombre: string
   apellido: string
@@ -26,37 +27,60 @@ export interface User {
 
 // Tipos para Carrito
 export interface CartItem {
-  id: number
-  productId: number
-  quantity: number
-  precio: number
+  idCarritoItem: number
+  idCarrito: number
+  idProducto: number
+  cantidad: number
+  fechaAgregado: string
   producto?: {
-    id: number
+    idProducto: number
     nombre: string
     descripcion: string
     precio: number
-    imageUrl?: string
+    stock: number
+    imagenUrl?: string
+    estaActivo: boolean
   }
 }
 
-// Tipos para Pedidos
-export interface Order {
-  id: number
+export interface Cart {
+  idCarrito: number
+  idUsuario: number
+  estaActivo: boolean
   fechaCreacion: string
-  estado: string
-  total: number
-  direccionEnvio: string
-  items: Array<{
-    id: number
-    cantidad: number
+  fechaActualizacion: string
+  items: CartItem[]
+  total?: number
+}
+
+// Tipos para Pedidos
+export interface OrderDetail {
+  idDetallePedido: number
+  idPedido: number
+  idProducto: number
+  cantidad: number
+  precioUnitario: number
+  subtotal: number
+  producto: {
+    idProducto: number
+    nombre: string
+    descripcion: string
     precio: number
-    producto: {
-      id: number
-      nombre: string
-      descripcion: string
-      imageUrl?: string
-    }
-  }>
+    imagenUrl?: string
+  }
+}
+
+export interface Order {
+  idPedido: number
+  idUsuario: number
+  numeroPedido: string
+  total: number
+  estado: string
+  metodoPago?: string
+  direccionEnvio?: string
+  notas?: string
+  fechaPedido: string
+  detalles: OrderDetail[]
 }
 
 // Tipos para Autenticación

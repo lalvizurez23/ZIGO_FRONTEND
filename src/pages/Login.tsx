@@ -4,7 +4,8 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { TextField, Button, Typography, Container, Box, Alert } from '@mui/material'
+import { TextField, Button, Typography, Container, Box } from '@mui/material'
+import showToast from '../utils/toast'
 
 interface LoginFormData {
   email: string
@@ -17,7 +18,7 @@ const schema = yup.object().shape({
 })
 
 const Login: React.FC = () => {
-  const { login, loading, error } = useAuth()
+  const { login, loading } = useAuth()
   const navigate = useNavigate()
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
     resolver: yupResolver(schema),
@@ -26,8 +27,11 @@ const Login: React.FC = () => {
   const onSubmit = async (data: LoginFormData) => {
     try {
       await login(data)
+      showToast.success('¡Bienvenido! Sesión iniciada correctamente')
       navigate('/products')
     } catch (err) {
+      const errorMessage = (err as Error).message || 'Error al iniciar sesión'
+      showToast.error(errorMessage)
       console.error('Login failed:', err)
     }
   }
@@ -38,7 +42,6 @@ const Login: React.FC = () => {
         <Typography component="h1" variant="h5" className="text-center text-zigo-dark-text">
           Iniciar Sesión
         </Typography>
-        {error && <Alert severity="error">{error}</Alert>}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <TextField
             {...register('email')}

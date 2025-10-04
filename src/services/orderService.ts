@@ -1,27 +1,15 @@
 import api from './api'
 
 export const orderService = {
-  // Get all orders for the current user
-  getOrders: async () => {
-    const response = await api.get('/pedido')
+  // Obtener pedidos del usuario autenticado
+  getMyOrders: async () => {
+    const response = await api.get('/pedidos/mis-pedidos')
     return response.data
   },
 
-  // Get a single order by ID
+  // Obtener un pedido específico
   getOrderById: async (id: number) => {
-    const response = await api.get(`/pedido/${id}`)
-    return response.data
-  },
-
-  // Create a new order (checkout)
-  createOrder: async (orderData: any) => {
-    const response = await api.post('/pedido', orderData)
-    return response.data
-  },
-
-  // Update order status (e.g., for admin)
-  updateOrderStatus: async (id: number, status: string) => {
-    const response = await api.patch(`/pedido/${id}/status`, { status })
+    const response = await api.get(`/pedidos/${id}`)
     return response.data
   },
 }

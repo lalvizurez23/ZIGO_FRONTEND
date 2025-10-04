@@ -1,21 +1,21 @@
 import api from './api'
 
 export const cartService = {
-  // Get user's cart
+  // Get user's cart (extrae userId del token)
   getCart: async () => {
-    const response = await api.get('/carrito')
+    const response = await api.get('/carrito/mi-carrito')
     return response.data
   },
 
   // Add item to cart
-  addItem: async (productId: number, quantity: number) => {
-    const response = await api.post('/carrito/item', { productId, quantity })
+  addItem: async (cartId: number, productId: number, quantity: number) => {
+    const response = await api.post('/carrito/item', { cartId, productId, quantity })
     return response.data
   },
 
   // Update item quantity in cart
   updateItem: async (itemId: number, quantity: number) => {
-    const response = await api.patch(`/carrito/item/${itemId}`, { quantity })
+    const response = await api.put(`/carrito/item/${itemId}`, { quantity })
     return response.data
   },
 

@@ -1,8 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { authService } from '../services/authService'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { clearAuth, updateToken } from '../store/slices/authSlice'
-import { LoginCredentials, RegisterData, User, AuthResponse } from '../types'
+import { LoginCredentials, RegisterData } from '../types'
 
 // Hook para login
 export const useLogin = () => {
@@ -78,29 +78,16 @@ export const useLogout = () => {
   })
 }
 
-// Hook para obtener perfil del usuario
+// Hook para obtener perfil del usuario (desde Redux)
 export const useUserProfile = () => {
-  const dispatch = useAppDispatch()
-  const { accessToken } = useAppSelector((state) => state.auth)
+  const { user, isAuthenticated } = useAppSelector((state) => state.auth)
 
-  return useQuery({
-    queryKey: ['user', 'profile'],
-    queryFn: async () => {
-      const response = await authService.getProfile()
-      
-      // Actualizar Redux con los datos del usuario
-      dispatch({
-        type: 'auth/setUser',
-        payload: response
-      })
-      
-      return response
-    },
-    enabled: !!accessToken, // Solo se ejecuta si hay token
-    staleTime: 10 * 60 * 1000, // 10 minutos
-    retry: 1,
-    refetchOnWindowFocus: false,
-  })
+  return {
+    data: user,
+    isLoading: false,
+    isError: !isAuthenticated,
+    error: null
+  }
 }
 
 // Hook para actualizar token automáticamente

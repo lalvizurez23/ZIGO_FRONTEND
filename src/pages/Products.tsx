@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useProducts } from '../hooks/useProducts'
-import { ShoppingCart, Search, FilterList } from '@mui/icons-material'
+import { useAddToCart } from '../hooks/useCart'
+import { ShoppingCart, Search, FilterList, Add } from '@mui/icons-material'
 import { Product } from '../types'
 import LoadingSpinner from '../components/LoadingSpinner'
+import showToast from '../utils/toast'
 
 const Products: React.FC = () => {
   const [inputValue, setInputValue] = useState('') // Valor del input (sin debounce)
@@ -14,6 +16,9 @@ const Products: React.FC = () => {
     search: searchTerm,
     categoria: ''
   })
+
+  // Hook para agregar al carrito
+  const addToCartMutation = useAddToCart()
 
   // Los productos vienen directamente del backend via TanStack Query
   // Asegurar que siempre es un array
@@ -30,6 +35,17 @@ const Products: React.FC = () => {
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value)
+  }
+
+  const handleAddToCart = async (productId: number) => {
+    try {
+      await addToCartMutation.mutateAsync({ productId, quantity: 1 })
+      showToast.success('Producto agregado al carrito')
+    } catch (error) {
+      const errorMessage = (error as Error).message || 'Error al agregar al carrito'
+      showToast.error(errorMessage)
+      console.error('Error al agregar al carrito:', error)
+    }
   }
 
   // Mantener el foco del input después de cada render
@@ -128,9 +144,20 @@ const Products: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-800 mb-1">{product.nombre}</h3>
                 <p className="text-gray-600 text-sm mb-2">{product.descripcion}</p>
                 <div className="flex items-center justify-between">
-                  <span className="text-xl font-bold text-primary-600">${product.precio}</span>
-                  <button className="btn-primary text-sm px-3 py-1">
-                    Añadir
+                  <span className="text-xl font-bold text-primary-600">Q{product.precio}</span>
+                  <button 
+                    className="btn-primary text-sm px-3 py-1 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => handleAddToCart(product.id)}
+                    disabled={addToCartMutation.isPending || product.stock === 0}
+                  >
+                    {addToCartMutation.isPending ? (
+                      <LoadingSpinner size="sm" />
+                    ) : (
+                      <>
+                        <Add className="h-4 w-4 mr-1" />
+                        {product.stock === 0 ? 'Sin Stock' : 'Añadir'}
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

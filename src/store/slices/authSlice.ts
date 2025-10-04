@@ -3,6 +3,7 @@ import { authService } from '../../services/authService'
 
 // Tipos para el estado de autenticación
 interface User {
+  idUsuario: number
   email: string
   nombre: string
   apellido: string
@@ -85,17 +86,6 @@ export const logoutUser = createAsyncThunk<boolean, void, { rejectValue: string 
   }
 )
 
-export const getProfile = createAsyncThunk<User, void, { rejectValue: string }>(
-  'auth/getProfile',
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await authService.getProfile()
-      return response
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Error al obtener perfil')
-    }
-  }
-)
 
 const authSlice = createSlice({
   name: 'auth',
@@ -181,19 +171,6 @@ const authSlice = createSlice({
         state.isAuthenticated = false
       })
       
-      // Get Profile
-      .addCase(getProfile.pending, (state) => {
-        state.loading = true
-      })
-      .addCase(getProfile.fulfilled, (state, action) => {
-        state.loading = false
-        state.user = action.payload
-        state.error = null
-      })
-      .addCase(getProfile.rejected, (state, action) => {
-        state.loading = false
-        state.error = action.payload || 'Error al obtener perfil'
-      })
   },
 })
 

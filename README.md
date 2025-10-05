@@ -1,370 +1,283 @@
-# ZIGO Frontend
+# ZIGO Frontend - E-commerce
 
 Frontend de la aplicación ZIGO desarrollado con React, TypeScript, Vite, Tailwind CSS, Material UI, Redux Toolkit y TanStack Query.
 
-## Arquitectura y Decisiones Técnicas
+## Requisitos Previos
 
-### Redux Toolkit - Solo para Autenticación
-Utilizamos **Redux Toolkit exclusivamente para el estado de autenticación** (token JWT, datos del usuario, estado de login). Esto nos permite:
-
-- **Seguridad Máxima**: El token JWT se almacena **solo en memoria** (Redux Store), no en `localStorage` ni `sessionStorage`
-- **Prevención de XSS**: JavaScript malicioso no puede acceder al token desde el almacenamiento del navegador
-- **Rendimiento**: Estado global optimizado solo para lo esencial
-- **Control de Acceso**: Gestión centralizada del estado de autenticación
-
-### TanStack Query - Para Datos del Backend
-Utilizamos **TanStack Query para todos los datos que vienen del backend** (productos, carrito, pedidos). Esto nos proporciona:
-
-- **Cache Inteligente**: Datos se cachean automáticamente con `staleTime` configurado
-- **Sincronización**: Actualización automática de datos entre componentes
-- **Optimización**: Evita peticiones innecesarias al backend
-- **Estados de Carga**: Manejo automático de loading, error y success states
-
-### Separación de Responsabilidades
-
-```typescript
-// Redux Toolkit - SOLO Autenticación
-interface AuthState {
-  user: User | null           // Datos del usuario
-  accessToken: string | null  // Token JWT (solo en memoria)
-  isAuthenticated: boolean    // Estado de autenticación
-  loading: boolean           // Loading de auth
-  error: string | null       // Errores de auth
-}
-
-// TanStack Query - TODOS los datos del backend
-useProducts()    // Productos del backend
-useCart()        // Carrito del backend  
-useOrders()      // Pedidos del backend
-useProduct()     // Producto específico
-useCreateOrder() // Crear pedido
-```
-
-### Beneficios de Seguridad
-
-1. **Token JWT en Memoria**: Imposible de acceder desde JavaScript malicioso
-2. **Sin Persistencia Local**: No hay datos sensibles en `localStorage`
-3. **Actualización Automática**: Tokens se renuevan automáticamente sin intervención del usuario
-4. **Manejo de Errores 401**: Redirección automática al login si el token expira
-
-### Comportamiento de Refresh de Página
-
-**IMPORTANTE**: Al refrescar la página (F5), el usuario **perderá su sesión** y será redirigido al login.
-
-#### ¿Por qué sucede esto?
-- **Token en Memoria**: El token JWT se almacena únicamente en Redux (memoria RAM)
-- **Redux se Resetea**: Al refrescar, Redux se reinicia y pierde todo el estado
-- **Sin Persistencia**: No guardamos el token en `localStorage` por seguridad
-
-#### ¿Por qué NO usamos localStorage?
-```typescript
-// VULNERABLE - NO HACEMOS ESTO
-localStorage.setItem('access_token', token) // Accesible por XSS
-
-// SEGURO - LO QUE HACEMOS
-const [token, setToken] = useState(null) // Solo en memoria
-```
-
-**Razones de Seguridad:**
-- **Ataques XSS**: Scripts maliciosos pueden leer `localStorage`
-- **Exposición**: El token queda visible en DevTools
-- **Persistencia Innecesaria**: El token se mantiene después de cerrar el navegador
-- **Mejores Prácticas**: Tokens sensibles deben estar solo en memoria
-
-#### Flujo de Autenticación Seguro:
-```
-1. Usuario hace Login → Token se guarda en Redux (memoria)
-2. Usuario navega → Token se usa para peticiones al backend
-3. Usuario refresca (F5) → Redux se resetea, token se pierde
-4. ProtectedRoute detecta → No hay token, redirige al login
-5. Usuario debe hacer login → Nuevamente para acceder
-```
-
-**Nota**: Este comportamiento es **intencional y más seguro** que mantener sesiones persistentes.
-
-## Inicio Rápido
-
-### Prerrequisitos
-- Node.js 20.10.0+ (recomendado: 20.19+ o 22.12+)
+- Node.js >= 20.10.0
 - npm o yarn
 - Backend ZIGO ejecutándose en `http://localhost:3000`
 
-### Instalación
+## Instalación
 
-1. **Clonar el repositorio:**
-   ```bash
-   git clone https://github.com/lalvizurez23/ZIGO_FRONTEND.git
-   cd ZIGO_FRONTEND
-   ```
+### 1. Instalar dependencias
+```bash
+npm install
+```
 
-2. **Instalar dependencias:**
-   ```bash
-   npm install
-   ```
+### 2. Configurar variables de entorno
+```bash
+cp env.example .env
+```
 
-3. **Configurar variables de entorno:**
-   ```bash
-   cp env.example .env
-   # Editar .env con tus configuraciones
-   ```
-
-4. **Ejecutar en modo desarrollo:**
-   ```bash
-   npm run dev
-   ```
-
-5. **Construir para producción:**
-   ```bash
-   npm run build
-   ```
-
-## Configuración
-
-### Tecnologías Utilizadas
-
-#### Frontend Core
-- **React 18.3.1** - Biblioteca de UI con TypeScript
-- **TypeScript** - Tipado estático para mayor seguridad y mantenibilidad
-- **Vite 4.5.3** - Herramienta de build y desarrollo ultra-rápida
-
-#### UI/UX
-- **Tailwind CSS** - Framework de estilos utility-first
-- **Material UI Icons** - Iconografía consistente
-- **React Hook Form** - Manejo de formularios con validación
-- **Yup** - Validación de esquemas
-
-#### Estado y Datos
-- **Redux Toolkit** - Estado global SOLO para autenticación
-- **TanStack Query** - Fetching y cache de datos del backend
-- **React Context** - Contexto de autenticación
-
-#### Navegación y HTTP
-- **React Router v6** - Navegación declarativa
-- **Axios** - Cliente HTTP con interceptores
-- **JWT Decode** - Decodificación de tokens JWT
-
-### Variables de Entorno
+Edita el archivo `.env`:
 ```env
-VITE_API_URL=http://localhost:3000
+VITE_API_URL=http://localhost:3000/api
 VITE_APP_NAME=ZIGO Frontend
 VITE_APP_VERSION=1.0.0
 ```
 
-## 📁 Estructura del Proyecto
+### 3. Ejecutar en modo desarrollo
+```bash
+npm run dev
+```
+
+La aplicación estará disponible en `http://localhost:5173`
+
+### 4. Construir para producción
+```bash
+npm run build
+```
+
+## Arquitectura del Sistema
+
+### Gestión de Estado Híbrida
+
+El proyecto implementa una arquitectura de estado híbrida que separa responsabilidades:
+
+#### Redux Toolkit - Solo Autenticación
+```typescript
+interface AuthState {
+  user: User | null           // Datos del usuario
+  accessToken: string | null  // Token JWT (solo en memoria)
+  isAuthenticated: boolean    // Estado de autenticación
+  loading: boolean
+  error: string | null
+}
+```
+
+**Responsabilidades:**
+- Almacenar token JWT en memoria (NO en localStorage)
+- Gestionar estado de autenticación
+- Almacenar datos del usuario
+- Actualizar token cuando viene del backend
+
+#### TanStack Query - Datos del Backend
+```typescript
+useProducts()    // Productos del backend
+useCart()        // Carrito del backend  
+useOrders()      // Pedidos del backend
+useCheckout()    // Proceso de pago
+```
+
+**Responsabilidades:**
+- Cache inteligente de datos
+- Sincronización automática entre componentes
+- Manejo de estados de carga (loading, error, success)
+- Invalidación y refetch automático
+
+### Arquitectura de Carrito Persistente
+
+El sistema implementa un carrito persistente único por usuario:
+
+**Flujo de Carrito:**
+1. Usuario se registra → Backend crea carrito automáticamente
+2. Usuario agrega productos → Se agregan al carrito persistente
+3. Usuario realiza checkout → Se crea pedido y se vacía el carrito
+4. Nueva compra → Reutiliza el mismo carrito (vacío)
+
+**Características:**
+- Un solo carrito activo por usuario
+- Persistente entre sesiones (en el backend)
+- Se vacía después de cada compra (no se elimina)
+- ID del carrito se obtiene del backend (no se envía desde frontend)
+
+### Sistema de Autenticación
+
+**Seguridad Implementada:**
+- Token JWT almacenado SOLO en memoria (Redux)
+- NO se usa localStorage (prevención de XSS)
+- Extracción de userId del token JWT en el backend
+- Renovación automática de tokens
+- Redirección automática al login si el token expira
+- Blacklist de tokens en Redis
+
+**Flujo de Autenticación:**
+```
+1. Login → Token se guarda en Redux (memoria)
+2. Request → Token se incluye automáticamente (interceptor)
+3. Backend valida → Extrae userId del token
+4. Respuesta → Datos + nuevo token (si es necesario)
+5. Frontend actualiza → Token se actualiza en Redux
+6. Token expira → Backend responde 401 → Redirección al login
+```
+
+### Notificaciones Toast
+
+Sistema estandarizado de notificaciones con `react-hot-toast`:
+
+**Tipos de notificaciones:**
+- Success (verde) - Operaciones exitosas
+- Error (rojo) - Errores
+- Warning (naranja) - Advertencias
+- Info (azul) - Información
+- Loading (azul) - Cargando
+
+**Implementadas en:**
+- Login/Registro exitoso
+- Productos agregados al carrito
+- Cantidades actualizadas
+- Productos eliminados
+- Pedidos procesados
+- Sesión expirada
+- Errores de API
+
+## Estructura del Proyecto
 
 ```
 zigo-frontend/
 ├── public/
 │   └── vite.svg
 ├── src/
-│   ├── components/          # Componentes reutilizables (TypeScript)
-│   │   ├── Layout.tsx       # Layout principal con navegación
-│   │   └── ProtectedRoute.tsx # Protección de rutas
-│   ├── contexts/            # Contextos de React (TypeScript)
-│   │   └── AuthContext.tsx  # Contexto de autenticación
-│   ├── hooks/               # Custom hooks con TanStack Query
-│   │   ├── useAuth.ts       # Hooks de autenticación
-│   │   ├── useProducts.ts   # Hooks de productos
-│   │   ├── useCart.ts       # Hooks de carrito
-│   │   └── useOrders.ts     # Hooks de pedidos
-│   ├── pages/               # Páginas de la aplicación (TypeScript)
-│   │   ├── Login.tsx        # Página de login
-│   │   ├── Register.tsx     # Página de registro
-│   │   ├── Products.tsx     # Listado de productos
-│   │   ├── Cart.tsx         # Carrito de compras
-│   │   ├── Checkout.tsx     # Proceso de compra
-│   │   └── Orders.tsx       # Historial de pedidos
-│   ├── services/            # Servicios de API (TypeScript)
-│   │   ├── api.ts           # Configuración de Axios
-│   │   ├── authService.ts   # Servicios de autenticación
-│   │   ├── productService.ts # Servicios de productos
-│   │   ├── cartService.ts   # Servicios de carrito
-│   │   └── orderService.ts  # Servicios de pedidos
-│   ├── store/               # Redux Store (SOLO autenticación)
-│   │   ├── index.ts         # Configuración del store
-│   │   ├── hooks.ts         # Hooks tipados de Redux
+│   ├── components/              # Componentes reutilizables
+│   │   ├── Layout.tsx           # Layout con navegación
+│   │   ├── ProtectedRoute.tsx   # Protección de rutas
+│   │   └── LoadingSpinner.tsx   # Spinner de carga
+│   ├── contexts/                # Contextos de React
+│   │   └── AuthContext.tsx      # Contexto de autenticación
+│   ├── hooks/                   # Custom hooks con TanStack Query
+│   │   ├── useAuth.ts           # Hooks de autenticación
+│   │   ├── useProducts.ts       # Hooks de productos
+│   │   ├── useCart.ts           # Hooks de carrito
+│   │   ├── useOrders.ts         # Hooks de pedidos
+│   │   └── useCheckout.ts       # Hook de checkout
+│   ├── pages/                   # Páginas de la aplicación
+│   │   ├── Login.tsx            # Página de login
+│   │   ├── Register.tsx         # Página de registro
+│   │   ├── Products.tsx         # Listado de productos
+│   │   ├── Cart.tsx             # Carrito de compras
+│   │   ├── Checkout.tsx         # Proceso de compra
+│   │   └── Orders.tsx           # Historial de pedidos
+│   ├── services/                # Servicios de API
+│   │   ├── api.ts               # Configuración de Axios
+│   │   ├── authService.ts       # Servicios de autenticación
+│   │   ├── productService.ts    # Servicios de productos
+│   │   ├── cartService.ts       # Servicios de carrito
+│   │   ├── orderService.ts      # Servicios de pedidos
+│   │   └── checkoutService.ts   # Servicio de checkout
+│   ├── store/                   # Redux Store
+│   │   ├── index.ts             # Configuración del store
+│   │   ├── hooks.ts             # Hooks tipados de Redux
 │   │   └── slices/
-│   │       └── authSlice.ts # Slice de autenticación
-│   ├── utils/               # Utilidades (TypeScript)
-│   │   └── jwtUtils.ts      # Utilidades JWT
-│   ├── App.tsx              # Componente principal
-│   ├── main.tsx             # Punto de entrada
-│   └── index.css            # Estilos globales con Tailwind
-├── tailwind.config.js       # Configuración de Tailwind
-├── postcss.config.js        # Configuración de PostCSS
-├── tsconfig.json            # Configuración de TypeScript
-├── tsconfig.node.json       # Configuración de TypeScript para Node
-├── package.json
-├── vite.config.ts
-└── README.md
+│   │       ├── authSlice.ts     # Slice de autenticación
+│   │       └── cartSlice.ts     # Slice de carrito (solo ID)
+│   ├── types/                   # Tipos TypeScript
+│   │   └── index.ts             # Tipos compartidos
+│   ├── utils/                   # Utilidades
+│   │   ├── jwtUtils.ts          # Utilidades JWT
+│   │   └── toast.ts             # Utilidades de notificaciones
+│   ├── App.tsx                  # Componente principal
+│   ├── main.tsx                 # Punto de entrada
+│   └── index.css                # Estilos globales
+├── tailwind.config.js           # Configuración de Tailwind
+├── vite.config.ts               # Configuración de Vite
+└── package.json
 ```
 
-## Características Implementadas
+## Funcionalidades Implementadas
 
-### Autenticación Segura
-- **Login y Registro** con validación de formularios
-- **Protección de rutas** con `ProtectedRoute`
-- **Token JWT en memoria** (no en localStorage)
-- **Redirección automática** al login si no está autenticado
-- **Manejo de errores** de autenticación
-- **Sesión se pierde al refrescar** (por seguridad)
+### Autenticación
+- Login con validación de formularios
+- Registro de nuevos usuarios (crea carrito automáticamente)
+- Protección de rutas con ProtectedRoute
+- Token JWT en memoria (no en localStorage)
+- Redirección automática al login si no está autenticado
+- Logout con revocación de token
+- Notificaciones de éxito/error
 
-### E-commerce Básico
-- **Listado de productos** con búsqueda
-- **Búsqueda inteligente** (mínimo 3 caracteres)
-- **Carrito de compras** (placeholder)
-- **Proceso de checkout** (placeholder)
-- **Historial de pedidos** (placeholder)
+### Productos
+- Listado de productos con imágenes
+- Búsqueda inteligente (mínimo 3 caracteres)
+- Agregar productos al carrito
+- Validación de stock disponible
+- Notificaciones al agregar productos
+- Diseño responsive con grid
+
+### Carrito de Compras
+- Ver items del carrito
+- Actualizar cantidades
+- Eliminar items individuales
+- Vaciar carrito completo
+- Cálculo automático de totales
+- Moneda en Quetzales (Q)
+- Notificaciones de acciones
+- Navegación a checkout
+
+### Checkout
+- Formulario con TanStack Form
+- Validación en tiempo real
+- Campos de dirección de envío
+- Simulación de tarjeta de crédito
+- Resumen del pedido
+- Cálculo de total
+- Procesamiento de pago
+- Actualización automática de stock
+- Vaciado de carrito después del pago
+- Mensaje de éxito con redirección
+
+### Historial de Pedidos
+- Listado de todos los pedidos del usuario
+- Detalles completos de cada pedido
+- Estados con badges de colores
+- Información de envío y pago
+- Lista de productos por pedido
+- Formato de fecha en español
+- Diseño responsive
 
 ### UI/UX
-- **Diseño responsive** con Tailwind CSS
-- **Iconografía consistente** con Material UI
-- **Loading states** con spinner personalizado
-- **Formularios validados** con React Hook Form
-- **Navegación intuitiva** con React Router
+- Diseño moderno con Tailwind CSS
+- Iconografía con Material UI Icons
+- Loading states con spinner personalizado
+- Notificaciones toast animadas
+- Formularios validados
+- Navegación intuitiva
+- Responsive design
+- Moneda en Quetzales (Q)
 
-### Rendimiento y Seguridad
-- **Cache inteligente** con TanStack Query
-- **Estado optimizado** con Redux Toolkit
-- **Tipado estático** con TypeScript
-- **Sin vulnerabilidades XSS** (sin localStorage)
-- **Interceptores HTTP** para manejo automático de tokens
+## Tecnologías Utilizadas
 
-## Backend
+### Frontend Core
+- **React 18.3** - Biblioteca de UI
+- **TypeScript** - Tipado estático
+- **Vite 4.5** - Build tool ultra-rápido
 
-Este frontend se conecta con el backend ZIGO que corre en:
-- **URL Base**: `http://localhost:3000`
-- **API Endpoints**: Ver documentación del backend
-- **Autenticación**: JWT con refresh automático
+### UI/UX
+- **Tailwind CSS** - Framework de estilos
+- **Material UI Icons** - Iconografía
+- **React Hook Form** - Manejo de formularios
+- **TanStack Form** - Formularios avanzados
+- **Yup** - Validación de esquemas
+- **react-hot-toast** - Notificaciones toast
 
-### Sistema de Tokens Automáticos
+### Estado y Datos
+- **Redux Toolkit** - Estado global (solo auth)
+- **TanStack Query** - Fetching y cache de datos
+- **React Context** - Contexto de autenticación
 
-El frontend implementa un sistema de tokens automáticos que funciona de la siguiente manera:
+### Navegación y HTTP
+- **React Router v6** - Navegación declarativa
+- **Axios** - Cliente HTTP con interceptores
+- **JWT Decode** - Decodificación de tokens
 
-#### Flujo de Autenticación:
-1. **Login**: Usuario inicia sesión → Backend devuelve `accessToken`
-2. **Almacenamiento**: Token se guarda **solo en memoria** (Redux Store)
-3. **Requests**: Cada petición incluye automáticamente el token actual
-4. **Respuesta**: Backend devuelve nuevo token refrescado en cada respuesta
-5. **Actualización**: Frontend actualiza automáticamente el token en Redux
-6. **Siguiente Request**: Usa el token actualizado automáticamente
+## Interceptor de Axios
 
-#### Seguridad Implementada:
-- **Token en memoria**: No se guarda en `localStorage` (vulnerable a XSS)
-- **Redux Store**: Estado centralizado y seguro
-- **Datos del usuario en memoria**: Información completa del usuario solo en Redux
-- **JWT mínimo**: Token solo contiene userId, email, iat, exp
-- **Sin validación de expiración**: Backend maneja toda la lógica de tokens
-- **Interceptor Axios**: Agrega token automáticamente a cada petición
-- **Actualización automática**: Token se refresca en cada respuesta
-- **Manejo de errores 401**: Redirige al login si el token es inválido
+### Configuración de Seguridad
 
-#### Código de Ejemplo:
-```javascript
-// 1. Login - Token se guarda en Redux
-const { login } = useAuth()
-await login(credentials) // Token se guarda en memoria
-
-// 2. Request automático - Token se incluye automáticamente
-const { data } = await api.get('/productos') // Token se agrega automáticamente
-
-// 3. Respuesta - Token se actualiza automáticamente
-// Si response.data.accessToken existe, se actualiza en Redux
-```
-
-## Desarrollo
-
-### Comandos Disponibles
-
-- `npm run dev` - Inicia el servidor de desarrollo
-- `npm run build` - Construye la aplicación para producción
-- `npm run preview` - Previsualiza el build de producción
-- `npm run lint` - Ejecuta ESLint para verificar el código
-
-### Características Implementadas
-
-**Autenticación Completa**
-- Login y registro de usuarios
-- Protección de rutas
-- Manejo de tokens JWT en memoria
-- Logout automático
-- **Sistema de tokens automáticos** (sin endpoints de refresh)
-
-**Gestión de Estado Híbrida**
-- **Redux Toolkit** SOLO para autenticación (token, usuario, estado de login)
-- **TanStack Query** para TODOS los datos del backend (productos, carrito, pedidos)
-- **Context API** para autenticación
-- Estados de loading/error/success automáticos
-- **Tokens en memoria** (no localStorage) - Prevención de XSS
-
-**UI/UX Moderna**
-- Tailwind CSS para estilos
-- Material UI Icons
-- Diseño responsive
-- Componentes reutilizables
-- **Colores y tipografía de Zigo**
-
-**Estructura Organizada**
-- File system consistente con TypeScript
-- Separación clara de responsabilidades
-- Servicios modulares tipados
-- Hooks personalizados con TanStack Query
-- **Redux slice único** para autenticación
-- **Imports directos** (sin archivos index.ts)
-
-### Implementación Técnica del Sistema de Tokens
-
-#### 1. Redux Store (Solo Autenticación)
-```typescript
-// store/slices/authSlice.ts
-interface AuthState {
-  user: User | null           // Datos del usuario
-  accessToken: string | null  // Token JWT (solo en memoria)
-  isAuthenticated: boolean    // Estado de autenticación
-  loading: boolean           // Loading de auth
-  error: string | null       // Errores de auth
-}
-
-const initialState: AuthState = {
-  user: null,
-  accessToken: null, // Solo en memoria - Prevención de XSS
-  isAuthenticated: false,
-  loading: false,
-  error: null,
-}
-```
-
-#### 2. TanStack Query (Datos del Backend)
-```typescript
-// hooks/useProducts.ts
-export const useProducts = (params: ProductParams = {}) => {
-  const dispatch = useAppDispatch()
-
-  return useQuery({
-    queryKey: ['products', params],
-    queryFn: async () => {
-      const response = await productService.getProducts(params)
-      
-      // Solo actualizar token en Redux si viene del backend
-      if (response.accessToken) {
-        dispatch(updateToken(response.accessToken))
-      }
-      
-      // Retornar SOLO los datos del backend (no Redux)
-      return response
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutos de cache
-    retry: 1,
-    refetchOnWindowFocus: false,
-  })
-}
-```
-
-#### **3. Interceptor de Axios (Seguridad)**
 ```typescript
 // services/api.ts
-let authToken: string | null = null // Variable en memoria
+let authToken: string | null = null
 
+// Interceptor de request - Agrega token automáticamente
 api.interceptors.request.use((config) => {
   if (authToken) {
     config.headers.Authorization = `Bearer ${authToken}`
@@ -372,17 +285,16 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+// Interceptor de response - Maneja token expirado
 api.interceptors.response.use(
-  (response) => {
-    // Si la respuesta contiene un nuevo token, se actualiza automáticamente
-    if (response.data?.accessToken) {
-      console.log('Nuevo token recibido del backend')
-    }
-    return response
-  },
+  (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expirado - redirigir al login
+      // Token expirado - limpiar y redirigir
+      authToken = null
+      localStorage.removeItem('token')
+      store.dispatch(clearAuth())
+      showToast.warning('Tu sesión ha expirado')
       window.location.href = '/login'
     }
     return Promise.reject(error)
@@ -390,151 +302,174 @@ api.interceptors.response.use(
 )
 ```
 
-#### **4. Componentes que Consumen (Separación Clara)**
-```typescript
-// pages/Products.tsx
-const Products: React.FC = () => {
-  // TanStack Query maneja los datos del backend
-  const { data: products, isLoading, error } = useProducts({
-    search: searchTerm,
-    categoria: selectedCategory
-  })
+## Comandos Disponibles
 
-  // Redux maneja solo la autenticación
-  const { user, isAuthenticated } = useAppSelector(state => state.auth)
+```bash
+# Desarrollo
+npm run dev              # Inicia servidor de desarrollo
 
-  // Los productos vienen directamente del backend via TanStack Query
-  const productsList = products || []
+# Producción
+npm run build            # Construye para producción
+npm run preview          # Previsualiza build de producción
 
-  if (isLoading) return <LoadingSpinner />
-  if (error) return <ErrorMessage onRetry={refetch} />
-  
-  return <ProductList products={productsList} />
-}
+# Calidad de código
+npm run lint             # Ejecuta ESLint
 ```
 
-### Páginas Implementadas
+## Flujo de Datos
 
-- **Login** - Autenticación de usuarios
-- **Register** - Registro de nuevos usuarios
-- **Products** - Listado y búsqueda de productos
-- **Cart** - Carrito de compras (placeholder)
-- **Checkout** - Proceso de compra (placeholder)
-- **Orders** - Historial de pedidos (placeholder)
-
-## Responsabilidades del Frontend
-
-### Redux Toolkit (Solo Autenticación):
-- **Almacenar token JWT** en memoria (no localStorage)
-- **Gestionar estado de autenticación** (isAuthenticated, loading, error)
-- **Almacenar datos del usuario** (nombre, email, etc.)
-- **Actualizar token** cuando viene del backend
-
-### TanStack Query (Datos del Backend):
-- **Obtener productos** del backend con cache automático
-- **Gestionar carrito** del backend con sincronización
-- **Manejar pedidos** del backend con estados de carga
-- **Actualizar datos** automáticamente entre componentes
-
-### Seguridad Implementada:
-- **Token JWT en memoria**: Imposible de acceder desde JavaScript malicioso
-- **Sin localStorage**: No hay datos sensibles en almacenamiento del navegador
-- **Interceptor Axios**: Agrega token automáticamente a cada petición
-- **Manejo de errores 401**: Redirección automática al login
-- **Actualización automática**: Tokens se renuevan sin intervención del usuario
-
-### Lo que el Frontend NO debe hacer:
-- **No validar expiración de tokens** (backend lo maneja)
-- **No guardar tokens en localStorage** (vulnerable a XSS)
-- **No guardar datos del usuario en localStorage** (userId, email, etc.)
-- **No llamar endpoints de refresh** (no existen)
-- **No persistir tokens** entre recargas de página
-- **No exponer información sensible** en el almacenamiento del navegador
-
-### Flujo de Datos:
+### 1. Autenticación
 ```
-1. Usuario hace login → Token se guarda en Redux (memoria)
-2. Usuario navega → TanStack Query obtiene datos del backend
-3. Petición incluye token automáticamente (interceptor Axios)
-4. Backend responde → Incluye nuevo token (si es necesario)
-5. Frontend actualiza → Token se actualiza en Redux
-6. Si token expira → Backend responde 401 → Frontend redirige a login
-7. Siguiente petición → Usa token actualizado (o usuario debe hacer login)
+Usuario → Login → Backend valida
+Backend → Token JWT + datos usuario
+Frontend → Guarda en Redux (memoria)
+Frontend → Redirige a /products
 ```
 
-## Próximos Pasos
+### 2. Agregar al Carrito
+```
+Usuario → Click "Añadir"
+Frontend → GET /carrito/mi-carrito (obtiene cartId del token)
+Frontend → POST /carrito/item (con cartId, productId, quantity)
+Backend → Valida stock y agrega
+Backend → Retorna carrito actualizado
+Frontend → Invalida cache de TanStack Query
+Frontend → Muestra toast de éxito
+```
 
-1. Implementar funcionalidad completa del carrito
-2. Desarrollar proceso de checkout
-3. Crear historial de pedidos
-4. Añadir filtros y categorías
-5. Implementar paginación
-6. Añadir tests unitarios
+### 3. Checkout
+```
+Usuario → Llena formulario de pago
+Usuario → Click "Pagar"
+Frontend → POST /pedidos/checkout (con datos de envío y tarjeta)
+Backend → Valida stock disponible
+Backend → Crea pedido en transacción
+Backend → Decrementa stock de productos
+Backend → Vacía items del carrito
+Backend → Retorna pedido creado
+Frontend → Invalida cache (cart, orders)
+Frontend → Muestra mensaje de éxito
+Frontend → Redirige a /products
+```
 
-## Notas Técnicas
+### 4. Ver Pedidos
+```
+Usuario → Click "Mis Pedidos"
+Frontend → GET /pedidos/mis-pedidos (userId del token)
+Backend → Retorna pedidos del usuario
+Frontend → Cachea con TanStack Query
+Frontend → Muestra historial completo
+```
 
-### Compatibilidad:
-- **Node.js**: 20.10.0+ (recomendado: 20.19+ o 22.12+)
-- **Vite**: 4.5.3 para compatibilidad con Node.js 20.10.0
-- **TypeScript**: Configuración estricta para mayor seguridad
-- **Material UI Icons**: Sin conflicto con Tailwind CSS
+## Seguridad Implementada
 
-### Decisiones de Seguridad:
-- **Token JWT en memoria**: Prevención de ataques XSS
-- **Sin localStorage**: No hay datos sensibles en almacenamiento del navegador
-- **Interceptor Axios**: Agrega token automáticamente a cada petición
-- **Manejo de errores 401**: Redirección automática al login
+### Prevención de XSS
+- Token JWT SOLO en memoria (Redux)
+- NO se usa localStorage para datos sensibles
+- Interceptor Axios para manejo automático
+- Limpieza de estado al expirar token
 
-### Decisiones de Arquitectura:
-- **Redux Toolkit**: Solo para autenticación (token, usuario, estado de login)
-- **TanStack Query**: Para todos los datos del backend (productos, carrito, pedidos)
-- **TypeScript**: Tipado estático para mayor seguridad y mantenibilidad
-- **Imports directos**: Sin archivos index.ts para mayor claridad
+### Validaciones
+- Formularios con validación en tiempo real
+- Validación de stock antes de agregar
+- Validación de cantidades (> 0)
+- Validación de campos requeridos
+- Manejo de errores de API
 
-### Optimizaciones:
-- **Cache inteligente**: TanStack Query con staleTime configurado
-- **Estados de carga**: Manejo automático de loading, error y success
-- **Sincronización**: Actualización automática de datos entre componentes
-- **Rendimiento**: Redux solo para lo esencial, TanStack Query para datos del backend
+### Autenticación
+- Token en cada request protegido
+- Extracción de userId del token (backend)
+- Redirección automática si no autenticado
+- Blacklist de tokens en Redis (backend)
 
-## Comportamiento de Refresh - IMPORTANTE
+## Comportamiento de Sesión
 
-### ¿Qué pasa al refrescar la página (F5)?
+### Al refrescar la página (F5)
 
 **El usuario PERDERÁ su sesión y será redirigido al login.**
 
-### Explicación Técnica:
+**Razones:**
+- Token JWT almacenado SOLO en memoria (Redux)
+- Redux se resetea al refrescar
+- NO usamos localStorage (vulnerable a XSS)
+- Prioridad: Seguridad > Comodidad
 
-```typescript
-// NO HACEMOS ESTO (vulnerable a XSS)
-localStorage.setItem('access_token', token)
-
-// SÍ HACEMOS ESTO (seguro)
-const [token, setToken] = useState(null) // Solo en memoria
-```
-
-### Razones de Seguridad:
-
-1. **Ataques XSS**: `localStorage` es accesible por JavaScript malicioso
-2. **Exposición de datos**: Tokens visibles en DevTools del navegador
-3. **Persistencia innecesaria**: Tokens no deben sobrevivir al cierre del navegador
-4. **Mejores prácticas**: Tokens sensibles solo en memoria
-
-### Flujo de Usuario:
-
+**Flujo:**
 ```
 1. Usuario hace login → Sesión activa
 2. Usuario navega → Acceso normal
-3. Usuario refresca (F5) → Sesión perdida
-4. Usuario es redirigido → Debe hacer login nuevamente
+3. Usuario refresca (F5) → Redux se resetea
+4. ProtectedRoute detecta → No hay token
+5. Usuario redirigido → Debe hacer login nuevamente
 ```
 
-### Nota para Desarrolladores:
+Este comportamiento es **intencional y más seguro** que mantener sesiones persistentes.
 
-Este comportamiento es **intencional y más seguro** que mantener sesiones persistentes. Si necesitas sesiones que sobrevivan al refresh, considera:
+## Integración con Backend
 
-- **Cookies HttpOnly**: Para tokens (más seguro que localStorage)
-- **Refresh tokens**: Con rotación automática
-- **Sesiones del servidor**: Con Redis o base de datos
+### URL Base
+```
+http://localhost:3000/api
+```
 
-**Para ZIGO, priorizamos la seguridad sobre la comodidad del usuario.**
+### Endpoints Consumidos
+
+**Autenticación:**
+- `POST /auth/register` - Registro (crea carrito automáticamente)
+- `POST /auth/login` - Login (retorna token + usuario)
+- `POST /auth/logout` - Logout (revoca token)
+
+**Productos:**
+- `GET /productos` - Listar productos (con filtros)
+
+**Carrito:**
+- `GET /carrito/mi-carrito` - Obtener carrito (userId del token)
+- `POST /carrito/item` - Agregar producto
+- `PUT /carrito/item/:itemId` - Actualizar cantidad
+- `DELETE /carrito/item/:itemId` - Eliminar item
+- `DELETE /carrito/clear` - Vaciar carrito
+
+**Pedidos:**
+- `GET /pedidos/mis-pedidos` - Historial (userId del token)
+- `POST /pedidos/checkout` - Procesar pago
+
+## Notas Técnicas
+
+### Compatibilidad
+- Node.js 20.10.0+
+- Vite 4.5.3 para compatibilidad
+- TypeScript con configuración estricta
+- Material UI Icons sin conflicto con Tailwind
+
+### Decisiones de Arquitectura
+- Redux Toolkit SOLO para autenticación
+- TanStack Query para datos del backend
+- TypeScript para tipado estático
+- Imports directos (sin index.ts)
+- Token en memoria (no localStorage)
+
+### Optimizaciones
+- Cache inteligente con TanStack Query
+- Estados de carga automáticos
+- Sincronización entre componentes
+- Invalidación selectiva de cache
+- Notificaciones toast no intrusivas
+
+### Moneda
+- Símbolo: Q (Quetzales)
+- Formato: Q1,234.56
+- Precisión: 2 decimales
+
+## Próximos Pasos
+
+- Implementar filtros por categoría
+- Agregar paginación de productos
+- Implementar búsqueda avanzada
+- Agregar tests unitarios
+- Implementar tests E2E
+- Optimizar imágenes
+- Agregar PWA support
+
+## Licencia
+
+Proyecto de prueba técnica - ZIGO 2025

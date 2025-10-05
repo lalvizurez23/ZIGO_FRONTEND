@@ -1,12 +1,45 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from '@tanstack/react-form'
+import { z } from 'zod'
 import { useCart } from '../hooks/useCart'
 import { useCheckout } from '../hooks/useCheckout'
 import { CreditCard, LocationOn, CheckCircle } from '@mui/icons-material'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { CartItem } from '../types'
 import showToast from '../utils/toast'
+
+// Schema de validación con Zod
+const checkoutSchema = z.object({
+  direccionEnvio: z.string()
+    .min(1, 'Dirección de envío es requerida')
+    .min(10, 'La dirección debe ser más específica')
+    .max(500, 'La dirección es demasiado larga'),
+  numeroTarjeta: z.string()
+    .min(1, 'Número de tarjeta es requerido')
+    .regex(/^\d{4}\s?\d{4}\s?\d{4}\s?\d{4}$/, 'Número de tarjeta inválido (16 dígitos)'),
+  nombreTarjeta: z.string()
+    .min(1, 'Nombre en la tarjeta es requerido')
+    .min(3, 'El nombre debe tener al menos 3 caracteres')
+    .max(100, 'El nombre es demasiado largo')
+    .regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, 'El nombre solo debe contener letras'),
+  fechaExpiracion: z.string()
+    .min(1, 'Fecha de expiración es requerida')
+    .regex(/^(0[1-9]|1[0-2])\/\d{2}$/, 'Formato inválido (MM/YY)')
+    .refine((val) => {
+      const [month, year] = val.split('/').map(Number)
+      const currentDate = new Date()
+      const currentYear = currentDate.getFullYear() % 100
+      const currentMonth = currentDate.getMonth() + 1
+      
+      if (year < currentYear) return false
+      if (year === currentYear && month < currentMonth) return false
+      return true
+    }, 'La tarjeta está expirada'),
+  cvv: z.string()
+    .min(1, 'CVV es requerido')
+    .regex(/^\d{3,4}$/, 'CVV inválido (3 o 4 dígitos)'),
+})
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate()
@@ -23,8 +56,21 @@ const Checkout: React.FC = () => {
       cvv: '',
     },
     onSubmit: async ({ value }) => {
+      // Validar con Zod antes de enviar
+      const result = checkoutSchema.safeParse(value)
+      if (!result.success) {
+        const firstError = result.error.issues[0]
+        showToast.error(firstError.message)
+        return
+      }
+
       try {
-        await checkoutMutation.mutateAsync(value)
+        // Limpiar el número de tarjeta (quitar espacios)
+        const cleanedValue = {
+          ...value,
+          numeroTarjeta: value.numeroTarjeta.replace(/\s/g, ''),
+        }
+        await checkoutMutation.mutateAsync(cleanedValue)
         setShowSuccess(true)
         showToast.success('¡Pedido realizado exitosamente!')
         // Redirigir a productos después de 3 segundos
@@ -109,30 +155,41 @@ const Checkout: React.FC = () => {
               >
                 {/* Dirección de Envío */}
                 <div>
-                  <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
+                  <label 
+                    htmlFor="direccionEnvio" 
+                    className="flex items-center text-sm font-medium text-gray-700 mb-2"
+                  >
                     <LocationOn className="h-5 w-5 mr-1" />
                     Dirección de Envío
                   </label>
                   <form.Field
                     name="direccionEnvio"
                     validators={{
-                      onChange: ({ value }) =>
-                        !value ? 'La dirección es requerida' : undefined,
+                      onChange: ({ value }) => {
+                        const result = checkoutSchema.shape.direccionEnvio.safeParse(value)
+                        return result.success ? undefined : result.error.issues[0]?.message
+                      },
                     }}
                   >
                     {(field) => (
                       <div>
                         <textarea
+                          id="direccionEnvio"
+                          name={field.name}
                           value={field.state.value}
                           onChange={(e) => field.handleChange(e.target.value)}
                           onBlur={field.handleBlur}
                           rows={3}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                           placeholder="Ingresa tu dirección completa"
+                          aria-label="Dirección de envío"
+                          aria-required="true"
+                          aria-invalid={field.state.meta.isTouched && !!field.state.meta.errors.length}
+                          aria-describedby={field.state.meta.errors.length > 0 ? 'direccionEnvio-error' : undefined}
                         />
-                        {field.state.meta.errors && (
-                          <p className="text-red-500 text-sm mt-1">
-                            {field.state.meta.errors[0]}
+                        {field.state.meta.isTouched && field.state.meta.errors.length > 0 && (
+                          <p id="direccionEnvio-error" className="text-red-500 text-sm mt-1" role="alert">
+                            {String(field.state.meta.errors[0])}
                           </p>
                         )}
                       </div>
@@ -142,29 +199,37 @@ const Checkout: React.FC = () => {
 
                 {/* Nombre en la Tarjeta */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="nombreTarjeta" className="block text-sm font-medium text-gray-700 mb-2">
                     Nombre en la Tarjeta
                   </label>
                   <form.Field
                     name="nombreTarjeta"
                     validators={{
-                      onChange: ({ value }) =>
-                        !value ? 'El nombre es requerido' : undefined,
+                      onChange: ({ value }) => {
+                        const result = checkoutSchema.shape.nombreTarjeta.safeParse(value)
+                        return result.success ? undefined : result.error.issues[0]?.message
+                      },
                     }}
                   >
                     {(field) => (
                       <div>
                         <input
+                          id="nombreTarjeta"
+                          name={field.name}
                           type="text"
                           value={field.state.value}
-                          onChange={(e) => field.handleChange(e.target.value)}
+                          onChange={(e) => field.handleChange(e.target.value.toUpperCase())}
                           onBlur={field.handleBlur}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                           placeholder="JUAN PÉREZ"
+                          aria-label="Nombre en la tarjeta"
+                          aria-required="true"
+                          aria-invalid={field.state.meta.isTouched && !!field.state.meta.errors.length}
+                          aria-describedby={field.state.meta.errors.length > 0 ? 'nombreTarjeta-error' : undefined}
                         />
-                        {field.state.meta.errors && (
-                          <p className="text-red-500 text-sm mt-1">
-                            {field.state.meta.errors[0]}
+                        {field.state.meta.isTouched && field.state.meta.errors.length > 0 && (
+                          <p id="nombreTarjeta-error" className="text-red-500 text-sm mt-1" role="alert">
+                            {String(field.state.meta.errors[0])}
                           </p>
                         )}
                       </div>
@@ -174,23 +239,23 @@ const Checkout: React.FC = () => {
 
                 {/* Número de Tarjeta */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="numeroTarjeta" className="block text-sm font-medium text-gray-700 mb-2">
                     Número de Tarjeta
                   </label>
                   <form.Field
                     name="numeroTarjeta"
                     validators={{
                       onChange: ({ value }) => {
-                        if (!value) return 'El número de tarjeta es requerido'
-                        if (value.replace(/\s/g, '').length !== 16)
-                          return 'El número de tarjeta debe tener 16 dígitos'
-                        return undefined
+                        const result = checkoutSchema.shape.numeroTarjeta.safeParse(value)
+                        return result.success ? undefined : result.error.issues[0]?.message
                       },
                     }}
                   >
                     {(field) => (
                       <div>
                         <input
+                          id="numeroTarjeta"
+                          name={field.name}
                           type="text"
                           value={field.state.value}
                           onChange={(e) => {
@@ -202,10 +267,14 @@ const Checkout: React.FC = () => {
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                           placeholder="1234 5678 9012 3456"
                           maxLength={19}
+                          aria-label="Número de tarjeta"
+                          aria-required="true"
+                          aria-invalid={field.state.meta.isTouched && !!field.state.meta.errors.length}
+                          aria-describedby={field.state.meta.errors.length > 0 ? 'numeroTarjeta-error' : undefined}
                         />
-                        {field.state.meta.errors && (
-                          <p className="text-red-500 text-sm mt-1">
-                            {field.state.meta.errors[0]}
+                        {field.state.meta.isTouched && field.state.meta.errors.length > 0 && (
+                          <p id="numeroTarjeta-error" className="text-red-500 text-sm mt-1" role="alert">
+                            {String(field.state.meta.errors[0])}
                           </p>
                         )}
                       </div>
@@ -216,23 +285,23 @@ const Checkout: React.FC = () => {
                 {/* Fecha de Expiración y CVV */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="fechaExpiracion" className="block text-sm font-medium text-gray-700 mb-2">
                       Fecha de Expiración
                     </label>
                     <form.Field
                       name="fechaExpiracion"
                       validators={{
                         onChange: ({ value }) => {
-                          if (!value) return 'La fecha es requerida'
-                          if (!/^\d{2}\/\d{2}$/.test(value))
-                            return 'Formato inválido (MM/YY)'
-                          return undefined
+                          const result = checkoutSchema.shape.fechaExpiracion.safeParse(value)
+                          return result.success ? undefined : result.error.issues[0]?.message
                         },
                       }}
                     >
                       {(field) => (
                         <div>
                           <input
+                            id="fechaExpiracion"
+                            name={field.name}
                             type="text"
                             value={field.state.value}
                             onChange={(e) => {
@@ -246,10 +315,14 @@ const Checkout: React.FC = () => {
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                             placeholder="MM/YY"
                             maxLength={5}
+                            aria-label="Fecha de expiración"
+                            aria-required="true"
+                            aria-invalid={field.state.meta.isTouched && !!field.state.meta.errors.length}
+                            aria-describedby={field.state.meta.errors.length > 0 ? 'fechaExpiracion-error' : undefined}
                           />
-                          {field.state.meta.errors && (
-                            <p className="text-red-500 text-sm mt-1">
-                              {field.state.meta.errors[0]}
+                          {field.state.meta.isTouched && field.state.meta.errors.length > 0 && (
+                            <p id="fechaExpiracion-error" className="text-red-500 text-sm mt-1" role="alert">
+                              {String(field.state.meta.errors[0])}
                             </p>
                           )}
                         </div>
@@ -258,36 +331,41 @@ const Checkout: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="cvv" className="block text-sm font-medium text-gray-700 mb-2">
                       CVV
                     </label>
                     <form.Field
                       name="cvv"
                       validators={{
                         onChange: ({ value }) => {
-                          if (!value) return 'El CVV es requerido'
-                          if (value.length !== 3) return 'El CVV debe tener 3 dígitos'
-                          return undefined
+                          const result = checkoutSchema.shape.cvv.safeParse(value)
+                          return result.success ? undefined : result.error.issues[0]?.message
                         },
                       }}
                     >
                       {(field) => (
                         <div>
                           <input
+                            id="cvv"
+                            name={field.name}
                             type="text"
                             value={field.state.value}
                             onChange={(e) => {
                               const value = e.target.value.replace(/\D/g, '')
-                              field.handleChange(value.slice(0, 3))
+                              field.handleChange(value.slice(0, 4))
                             }}
                             onBlur={field.handleBlur}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                             placeholder="123"
-                            maxLength={3}
+                            maxLength={4}
+                            aria-label="CVV"
+                            aria-required="true"
+                            aria-invalid={field.state.meta.isTouched && !!field.state.meta.errors.length}
+                            aria-describedby={field.state.meta.errors.length > 0 ? 'cvv-error' : undefined}
                           />
-                          {field.state.meta.errors && (
-                            <p className="text-red-500 text-sm mt-1">
-                              {field.state.meta.errors[0]}
+                          {field.state.meta.isTouched && field.state.meta.errors.length > 0 && (
+                            <p id="cvv-error" className="text-red-500 text-sm mt-1" role="alert">
+                              {String(field.state.meta.errors[0])}
                             </p>
                           )}
                         </div>
@@ -297,20 +375,26 @@ const Checkout: React.FC = () => {
                 </div>
 
                 <div className="pt-4">
-                  <button
-                    type="submit"
-                    disabled={checkoutMutation.isPending}
-                    className="w-full btn-primary py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {checkoutMutation.isPending ? (
-                      <span className="flex items-center justify-center">
-                        <LoadingSpinner size="sm" />
-                        <span className="ml-2">Procesando...</span>
-                      </span>
-                    ) : (
-                      `Pagar Q${total.toFixed(2)}`
+                  <form.Subscribe
+                    selector={(state) => [state.canSubmit, state.isSubmitting]}
+                    children={([canSubmit, isSubmitting]) => (
+                      <button
+                        type="submit"
+                        disabled={!canSubmit || isSubmitting || checkoutMutation.isPending}
+                        className="w-full btn-primary py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label={`Pagar Q${total.toFixed(2)}`}
+                      >
+                        {isSubmitting || checkoutMutation.isPending ? (
+                          <span className="flex items-center justify-center">
+                            <LoadingSpinner size="sm" />
+                            <span className="ml-2">Procesando...</span>
+                          </span>
+                        ) : (
+                          `Pagar Q${total.toFixed(2)}`
+                        )}
+                      </button>
                     )}
-                  </button>
+                  />
                 </div>
 
                 {checkoutMutation.isError && (
